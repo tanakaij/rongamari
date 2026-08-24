@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RongaMari</title>
+<meta name="description" content="RongaMari — Plan. Spend. Save. Grow. Your personal monthly budget, offline.">
+<link rel="manifest" href="rongamari.manifest.json">
+<link rel="icon" href="resources/favicon-128.png">
+<link rel="apple-touch-icon" href="resources/apple-touch-icon-180.png">
+<meta name="theme-color" content="#0A4D22">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__brand" id="brandBtn" role="button" tabindex="0" aria-label="RongaMari home">
+    <img class="topbar__mark" src="resources/mark.png" alt="" width="26" height="26">
+    <div class="topbar__names">
+      <h1 class="topbar__title">RongaMari</h1>
+      <span class="topbar__tag">Plan · Spend · Save · Grow</span>
+    </div>
+  </div>
+  <div class="topbar__actions">
+    <button class="iconbtn" id="btnDebts" type="button" aria-label="Debts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2.5"/><circle cx="16" cy="12" r="2.4"/><path d="M5.5 9.5h4M5.5 14.5h4"/></svg>
+      <span class="iconbtn__badge" id="debtBadge" hidden></span>
+    </button>
+    <button class="iconbtn" id="btnMore" type="button" aria-label="Settings and more">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="views">
+
+  <!-- ═══════════ HOME ═══════════ -->
+  <section class="view is-active" id="view-home">
+    <div class="monthbar">
+      <button class="monthbar__nav" id="homePrev" type="button" aria-label="Previous month">‹</button>
+      <button class="monthbar__label" id="homeMonth" type="button">Month</button>
+      <button class="monthbar__nav" id="homeNext" type="button" aria-label="Next month">›</button>
+    </div>
+
+    <div class="hero card" id="heroCard">
+      <div class="hero__ring" id="heroRing"></div>
+      <div class="hero__main">
+        <span class="hero__eyebrow">Left this month</span>
+        <span class="hero__amount" id="heroAmount">—</span>
+        <span class="hero__sub" id="heroSub"></span>
+        <span class="chip chip--safe" id="heroDaily"></span>
+      </div>
+    </div>
+
+    <div class="alert" id="homeAlert" hidden></div>
+
+    <div class="statrow" id="homeStats"></div>
+
+    <div class="card tapcard" id="cardWeek" role="button" tabindex="0">
+      <div class="card__head">
+        <h2>Weekly spending</h2>
+        <span class="card__link" id="weekTotal"></span>
+      </div>
+      <div id="weekChart" class="chart"></div>
+    </div>
+
+    <div class="card tapcard" id="cardCats">
+      <div class="card__head"><h2>Where it goes</h2><span class="card__link">Plan</span></div>
+      <div id="homeCats" class="catbars"></div>
+    </div>
+
+    <div class="card tapcard" id="cardDebts">
+      <div class="card__head"><h2>Borrowed money</h2><span class="card__link">View</span></div>
+      <div id="homeDebts"></div>
+    </div>
+
+    <div class="card tapcard" id="cardGoals">
+      <div class="card__head"><h2>Savings goals</h2><span class="card__link">Save</span></div>
+      <div id="homeGoals"></div>
+    </div>
+
+    <div class="card tapcard" id="cardInsight">
+      <div class="card__head"><h2>Smart insight</h2><span class="card__link">Grow</span></div>
+      <div id="homeInsight"></div>
+    </div>
+
+    <div class="card tapcard" id="cardRecent">
+      <div class="card__head"><h2>Recent activity</h2><span class="card__link">All</span></div>
+      <ul class="txlist" id="homeRecent"></ul>
+    </div>
+
+    <div class="hintblock" id="homeHint" hidden></div>
+  </section>
+
+  <!-- ═══════════ PLAN ═══════════ -->
+  <section class="view" id="view-plan">
+    <div class="monthbar">
+      <button class="monthbar__nav" id="planPrev" type="button" aria-label="Previous month">‹</button>
+      <button class="monthbar__label" id="planMonth" type="button">Month</button>
+      <button class="monthbar__nav" id="planNext" type="button" aria-label="Next month">›</button>
+    </div>
+
+    <div class="card" id="incomeCard" role="button" tabindex="0">
+      <div class="card__head"><h2>Monthly income</h2><span class="card__link">Edit</span></div>
+      <div class="income" id="planIncome">—</div>
+      <div class="allocbar" id="planAlloc"></div>
+    </div>
+
+    <div class="row row--split">
+      <button class="btn btn--ghost" id="btnCopyPrev" type="button">Copy last month</button>
+      <button class="btn btn--ghost" id="btnAutoPlan" type="button">Suggest split</button>
+    </div>
+
+    <div class="card">
+      <div class="card__head">
+        <h2>Category budgets</h2>
+        <button class="btn btn--tiny btn--primary" id="btnAddCat" type="button">+ Add</button>
+      </div>
+      <ul class="catlist" id="planCats"></ul>
+      <div class="empty empty--mini" id="planCatsEmpty" hidden>
+        <p>No categories yet. Add the things you spend on every month.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SPEND ═══════════ -->
+  <section class="view" id="view-spend">
+    <div class="monthbar">
+      <button class="monthbar__nav" id="spendPrev" type="button" aria-label="Previous month">‹</button>
+      <button class="monthbar__label" id="spendMonth" type="button">Month</button>
+      <button class="monthbar__nav" id="spendNext" type="button" aria-label="Next month">›</button>
+    </div>
+
+    <div class="statrow" id="spendStats"></div>
+    <div class="chips" id="spendFilters"></div>
+    <div id="spendGroups"></div>
+    <div class="empty" id="spendEmpty" hidden>
+      <img src="resources/mark.png" alt="" width="56" height="56" class="empty__mark">
+      <h2>Nothing logged yet</h2>
+      <p>Tap <strong>+</strong> to log what you spend. Every entry keeps your
+         monthly picture honest — weekly patterns, category totals, insights.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ SAVE (goals) ═══════════ -->
+  <section class="view" id="view-save">
+    <div class="card">
+      <div class="card__head"><h2>Total saved</h2></div>
+      <div class="income" id="saveTotal">—</div>
+      <p class="card__note" id="saveSub"></p>
+    </div>
+    <ul class="goallist" id="goalList"></ul>
+    <div class="empty" id="goalsEmpty" hidden>
+      <img src="resources/mark.png" alt="" width="56" height="56" class="empty__mark">
+      <h2>No goals yet</h2>
+      <p>A goal turns saving into a plan — rent deposit, tools, an emergency
+         buffer. Set a target and log contributions as you go.</p>
+    </div>
+    <button class="btn btn--primary btn--block" id="btnAddGoal" type="button">+ New goal</button>
+  </section>
+
+  <!-- ═══════════ GROW (insights) ═══════════ -->
+  <section class="view" id="view-grow">
+    <div class="monthbar">
+      <button class="monthbar__nav" id="growPrev" type="button" aria-label="Previous month">‹</button>
+      <button class="monthbar__label" id="growMonth" type="button">Month</button>
+      <button class="monthbar__nav" id="growNext" type="button" aria-label="Next month">›</button>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2>Six-month trend</h2></div>
+      <div id="trendChart" class="chart"></div>
+    </div>
+
+    <div class="statrow" id="growStats"></div>
+
+    <div class="card">
+      <div class="card__head"><h2>This month's review</h2></div>
+      <div id="growReview"></div>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2>Insights</h2></div>
+      <ul class="insights" id="growInsights"></ul>
+      <div class="empty empty--mini" id="growEmpty" hidden>
+        <p>Log a few expenses and your insights will appear here — pacing,
+           patterns, and where small changes save the most.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2>Export this month</h2></div>
+      <div class="row row--split">
+        <button class="btn btn--primary" id="btnPdf2" type="button">PDF statement</button>
+        <button class="btn btn--ghost" id="btnXlsx2" type="button">Excel workbook</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ DEBTS ═══════════ -->
+  <section class="view" id="view-debts">
+    <div class="seg" id="debtSeg" role="tablist">
+      <button class="seg__btn is-active" data-dir="owe" type="button">I owe</button>
+      <button class="seg__btn" data-dir="lent" type="button">Owed to me</button>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2 id="debtSummaryTitle">Still to pay</h2></div>
+      <div class="income" id="debtPending">—</div>
+      <p class="card__note" id="debtSub"></p>
+    </div>
+
+    <ul class="debtlist" id="debtList"></ul>
+    <div class="empty" id="debtsEmpty" hidden>
+      <img src="resources/mark.png" alt="" width="56" height="56" class="empty__mark">
+      <h2>Nothing tracked here</h2>
+      <p>Log money you've borrowed or lent, set a due date, and RongaMari will
+         remind you before it's late and count it against your month.</p>
+    </div>
+    <button class="btn btn--primary btn--block" id="btnAddDebt" type="button">+ Track money</button>
+  </section>
+
+  <!-- ═══════════ MORE ═══════════ -->
+  <section class="view" id="view-more">
+    <div class="card" id="profileCard">
+      <img class="more__logo" src="resources/logo-full.png" alt="RongaMari">
+      <p class="more__tag">Plan · Spend · Save · Grow</p>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2>You</h2></div>
+      <button class="setting" id="setName" type="button">
+        <span class="setting__label">Name</span><span class="setting__value" id="nameValue">—</span>
+      </button>
+      <button class="setting" id="setCurrency" type="button">
+        <span class="setting__label">Currency</span><span class="setting__value" id="currencyValue">$</span>
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2>Reminders</h2></div>
+      <label class="setting setting--toggle">
+        <span class="setting__label">Notifications</span>
+        <input type="checkbox" id="notifEnabled" class="switch">
+      </label>
+      <button class="setting" id="setNotifTime" type="button">
+        <span class="setting__label">Daily check-in time</span><span class="setting__value" id="notifTimeValue">19:30</span>
+      </button>
+      <button class="setting" id="setThreshold" type="button">
+        <span class="setting__label">Budget alert at</span><span class="setting__value" id="thresholdValue">80%</span>
+      </button>
+      <button class="setting" id="setDebtDays" type="button">
+        <span class="setting__label">Debt reminder before due</span><span class="setting__value" id="debtDaysValue">3 days</span>
+      </button>
+      <button class="setting" id="btnTestNotif" type="button">
+        <span class="setting__label">Send a test notification</span><span class="setting__value">›</span>
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2>Export</h2></div>
+      <button class="setting" id="btnPdf" type="button">
+        <span class="setting__label">PDF statement</span><span class="setting__value" id="pdfMonth">—</span>
+      </button>
+      <button class="setting" id="btnXlsx" type="button">
+        <span class="setting__label">Excel workbook</span><span class="setting__value">›</span>
+      </button>
+      <p class="card__note">Invoice-style statement of the selected month: budget
+         vs actual, every transaction, debts and goals. Saved to
+         <strong>Documents/RongaMari</strong> on Android, downloads in a browser.</p>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h2>Your data</h2></div>
+      <div class="row row--split">
+        <button class="btn btn--ghost" id="btnBackup" type="button">Back up</button>
+        <button class="btn btn--ghost" id="btnRestore" type="button">Restore</button>
+      </div>
+      <input id="restoreFile" type="file" accept="application/json,.json" hidden>
+      <button class="setting setting--danger" id="btnReset" type="button">
+        <span class="setting__label">Erase everything</span><span class="setting__value">›</span>
+      </button>
+      <p class="card__note">Everything lives on this device only — no account,
+         no server, works fully offline.</p>
+    </div>
+
+    <p class="version">RongaMari 1.0 · Made for one person's money: yours.</p>
+  </section>
+
+</main>
+
+<nav class="bottomnav" id="bottomnav">
+  <button class="navbtn is-active" data-view="home" type="button" aria-label="Home">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9.5V20a1 1 0 0 0 1 1H10v-5.5h4V21h3.5a1 1 0 0 0 1-1V9.5"/></svg>
+    <span>Home</span>
+  </button>
+  <button class="navbtn" data-view="plan" type="button" aria-label="Plan">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 3.5V2M16 3.5V2M4 9h16M8 13h3M8 16.5h6"/></svg>
+    <span>Plan</span>
+  </button>
+  <button class="navbtn navbtn--mid" data-view="spend" type="button" aria-label="Spend">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M15.5 8.5c-.7-1.2-2-1.8-3.5-1.8-1.9 0-3.4 1-3.4 2.6 0 3.4 7.2 1.7 7.2 5.2 0 1.7-1.7 2.8-3.8 2.8-1.8 0-3.2-.8-3.9-2"/></svg>
+    <span>Spend</span>
+  </button>
+  <button class="navbtn" data-view="save" type="button" aria-label="Save">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
+    <span>Save</span>
+  </button>
+  <button class="navbtn" data-view="grow" type="button" aria-label="Grow">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6.5 20v-5M11 20V9.5M15.5 20v-8M20 20V4.5"/></svg>
+    <span>Grow</span>
+  </button>
+</nav>
+
+<button class="fab" id="fabAdd" type="button" aria-label="Add transaction">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+</button>
+
+<!-- ═══════════ BOTTOM SHEET ═══════════ -->
+<div class="modal" id="modal" hidden>
+  <div class="modal__scrim" id="modalScrim"></div>
+  <div class="modal__sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal__grip"></div>
+    <header class="modal__head">
+      <h2 class="modal__title" id="modalTitle">Edit</h2>
+      <button class="iconbtn" id="modalX" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <div class="modal__body" id="modalBody"></div>
+    <footer class="modal__foot" id="modalFoot">
+      <button class="btn btn--ghost" id="modalCancel" type="button">Cancel</button>
+      <button class="btn btn--primary" id="modalSave" type="button">Save</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+<script src="js/store.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/insights.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
