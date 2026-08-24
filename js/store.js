@@ -245,7 +245,7 @@
       direction: d.direction === 'lent' ? 'lent' : 'owe',
       person: String(d.person || '').trim().slice(0, 40) || 'Someone',
       amount: round2(Math.max(0, Number(d.amount) || 0)),
-      paid: round2(Math.max(0, Number(d.paid) || 0)),
+      paid: round2(Math.min(Math.max(0, Number(d.amount) || 0), Math.max(0, Number(d.paid) || 0))),
       startDate: d.startDate || todayStr(),
       dueDate: d.dueDate || '',
       note: String(d.note || '').trim().slice(0, 80)

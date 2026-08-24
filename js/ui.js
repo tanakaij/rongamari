@@ -12,6 +12,7 @@
   var modal = null, sheet = null, body = null, titleEl = null,
       foot = null, cancelBtn = null, saveBtn = null, scrim = null;
   var onSave = null, onClose = null, open = false;
+  var closeTimer = null;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -72,7 +73,7 @@
           esc(f.placeholder || '') + '">' + esc(f.value || '') + '</textarea>';
         break;
       case 'icons':
-        bodyHtml = '<div class="iconpick" data-iconpick="' + esc(f.name) + '">' +
+        bodyHtml = '<div class="iconpick"' + common + ' data-iconpick="' + esc(f.name) + '">' +
           (f.options || []).map(function (ic) {
             /* hex values render as swatches, not as their own text */
             var isColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(ic);
@@ -86,7 +87,7 @@
         bodyHtml = '<div class="card__note" style="margin-top:2px">' + esc(f.value || '') + '</div>';
         break;
       case 'segment':
-        bodyHtml = '<div class="typeseg" data-segment="' + esc(f.name) + '">' +
+        bodyHtml = '<div class="typeseg"' + common + ' data-segment="' + esc(f.name) + '">' +
           (f.options || []).map(function (o) {
             var v = typeof o === 'string' ? o : o.value;
             var l = typeof o === 'string' ? o : o.label;
@@ -161,6 +162,12 @@
   /* opts: {title, fields, saveLabel, hideSave, onSave(values), onClose} */
   function show(opts) {
     ensure();
+    /* Cancel any pending hide/cleanup from a sheet that is still animating
+     * closed (e.g. an action button that closes this sheet and immediately
+     * opens another one). Without this, the earlier close()'s deferred
+     * `modal.hidden = true` fires after the new sheet has already opened,
+     * making it look like the new sheet flashes open then closes itself. */
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
     titleEl.textContent = opts.title || '';
     body.innerHTML = formHTML(opts.fields || []);
     wireExtras(body);
@@ -185,7 +192,9 @@
     modal.classList.remove('is-open');
     var cb = onClose;
     onClose = null;
-    setTimeout(function () {
+    if (closeTimer) clearTimeout(closeTimer);
+    closeTimer = setTimeout(function () {
+      closeTimer = null;
       modal.hidden = true;
       body.innerHTML = '';
     }, 240);
