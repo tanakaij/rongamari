@@ -1,0 +1,207 @@
+# ── RongaMari / .github/workflows/build-apk.yml ──
+# Builds a signed release APK on every push to main and publishes it to the
+# GitHub Release tagged "latest". One stable download link:
+#
+#   https://github.com/<you>/<repo>/releases/download/latest/RongaMari.apk
+#
+# Capacitor, not Bubblewrap: a TWA verifies ownership via
+# /.well-known/assetlinks.json at the DOMAIN ROOT, and a GitHub project page
+# lives at <you>.github.io/<repo>/ — the root belongs to a different repo, so
+# verification fails and the app opens with a browser address bar. Capacitor
+# bundles the web assets into the APK instead: no assetlinks, no domain, and
+# the app works on a phone that has never once reached the Pages URL.
+
+name: Build RongaMari APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          # 17, not 21: the Capacitor 6 / AGP 8.2 toolchain builds under 17.
+          java-version: '17'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run the test suite
+        # The gate. A broken APK installs over a working one — and takes the
+        # month's budget data down with it if the user is forced to uninstall.
+        run: npm test
+
+      # ══ FIRST-RUN KEYSTORE ══
+      # Android refuses to update an app whose signature changed, and a fresh
+      # CI runner has no key of its own — so the signing identity must live in
+      # the repo. On the very first build (and only then) a keystore is
+      # generated and committed; every later build reuses it byte-for-byte.
+      # Password/alias default to "rongamari" — see BUILD_APK.md.
+      - name: Create the signing keystore (first run only)
+        env:
+          RONGAMARI_KEYSTORE_B64: ${{ secrets.RONGAMARI_KEYSTORE_B64 }}
+        run: |
+          set -e
+          if [ -n "$RONGAMARI_KEYSTORE_B64" ]; then
+            echo "Using keystore from repository secret."
+            exit 0
+          fi
+          if [ ! -f signing/rongamari-release.keystore ]; then
+            mkdir -p signing
+            keytool -genkeypair -v \
+              -keystore signing/rongamari-release.keystore \
+              -alias rongamari -keyalg RSA -keysize 2048 -validity 10950 \
+              -storepass rongamari -keypass rongamari \
+              -dname "CN=RongaMari, OU=Personal, O=RongaMari, C=ZW"
+            git config user.name "rongamari-bot"
+            git config user.email "actions@github.com"
+            git add signing/rongamari-release.keystore
+            git commit -m "Add release signing keystore (generated on first build)"
+            git push
+            echo "Keystore committed — it must never be deleted, or updates break."
+          else
+            echo "Committed keystore already present."
+          fi
+
+      # ══ STAGE THE WEB APP ══
+      # capacitor.config.json points webDir at www/. Nothing here is committed
+      # back; www/ is throwaway.
+      - name: Stage the web app into www/ for Capacitor
+        run: |
+          set -e
+          rm -rf www
+          mkdir -p www
+          cp index.html www/index.html
+          cp rongamari-sw.js www/rongamari-sw.js
+          cp rongamari.manifest.json www/rongamari.manifest.json
+          cp -r css www/css
+          cp -r js www/js
+          # maxdepth 1: resources/android/ holds the launcher masters and
+          # logo-source.png the artwork — neither belongs in the WebView payload.
+          mkdir -p www/resources
+          find resources -maxdepth 1 -type f ! -name 'logo-source.png' \
+            -exec cp {} www/resources/ \;
+          echo "Staged web payload: $(du -sh www | cut -f1)"
+
+      - name: Verify every referenced file was staged
+        # Catches what the copy above cannot: a new css/ or js/ file added to
+        # index.html but never staged. Fatal in the APK, invisible in a browser.
+        run: |
+          set -e
+          MISSING=0
+          for f in $(grep -o 'href="css/[^"]*"' index.html | sed 's/href="//;s/"//'); do
+            [ -f "www/$f" ] || { echo "::error::index.html references $f but it was not staged"; MISSING=1; }
+          done
+          for f in $(grep -o 'src="js/[^"]*"' index.html | sed 's/src="//;s/"//'); do
+            [ -f "www/$f" ] || { echo "::error::index.html references $f but it was not staged"; MISSING=1; }
+          done
+          for f in $(grep -oh 'resources/[A-Za-z0-9._-]*\.\(png\|svg\)' index.html rongamari.manifest.json rongamari-sw.js | sort -u); do
+            [ -f "www/$f" ] || { echo "::error::$f is referenced but was not staged"; MISSING=1; }
+          done
+          [ "$MISSING" = "0" ] || exit 1
+          echo "All referenced assets staged."
+
+      - name: Add the Android platform
+        run: npx cap add android
+
+      - name: Patch signing config and versionCode
+        env:
+          RONGAMARI_KEYSTORE_B64: ${{ secrets.RONGAMARI_KEYSTORE_B64 }}
+          RONGAMARI_KEYSTORE_PASSWORD: ${{ secrets.RONGAMARI_KEYSTORE_PASSWORD }}
+          RONGAMARI_KEY_ALIAS: ${{ secrets.RONGAMARI_KEY_ALIAS }}
+          RONGAMARI_KEY_PASSWORD: ${{ secrets.RONGAMARI_KEY_PASSWORD }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -e
+          if [ -n "$RONGAMARI_KEYSTORE_B64" ]; then
+            echo "$RONGAMARI_KEYSTORE_B64" | base64 -d > /tmp/rongamari.jks
+            export RONGAMARI_KEYSTORE_PATH=/tmp/rongamari.jks
+          fi
+          python3 scripts/patch-android-signing.py
+
+      # Capacitor's default status bar is a stock blue-grey — a wrong-coloured
+      # band above the green header that nobody spots until it's on a phone.
+      - name: Match the native status bar to the app
+        run: python3 scripts/patch-android-theme.py
+
+      - name: Replace the launcher icon
+        run: python3 scripts/patch-android-icons.py
+
+      - name: Sync web assets into the Android project
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # assembleRelease, not assembleDebug: a debuggable sideloaded APK from an
+      # unknown signer is exactly the profile Play Protect holds back.
+      - name: Build release APK
+        run: cd android && ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Fail if no real APK was produced
+        run: |
+          set -e
+          OUT=android/app/build/outputs/apk/release
+          APK="$OUT/app-release.apk"
+
+          # Gradle names it app-release-unsigned.apk when the signing patch
+          # failed to apply. Go green-and-useless silently? No.
+          if [ ! -f "$APK" ] && [ -f "$OUT/app-release-unsigned.apk" ]; then
+            echo "::error::Gradle produced an UNSIGNED release APK — the signing patch did not apply."
+            exit 1
+          fi
+          if [ ! -f "$APK" ]; then
+            echo "::error::Gradle reported success but produced no APK"
+            ls -la "$OUT" || true
+            exit 1
+          fi
+          SIZE=$(stat -c%s "$APK")
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "::error::APK is only $SIZE bytes — the web assets did not make it in"
+            exit 1
+          fi
+          cp "$APK" "$OUT/RongaMari.apk"
+          echo "Built RongaMari.apk ($SIZE bytes)"
+
+      - name: Upload APK (workflow artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RongaMari-release-apk
+          path: android/app/build/outputs/apk/release/RongaMari.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      # A Release has one stable URL that never changes between builds.
+      - name: Publish APK to the "latest" GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: RongaMari (latest build)
+          body: |
+            Automatically rebuilt from the latest push to `main`.
+
+            **Install:** download `RongaMari.apk`, open it, allow "install from
+            this source" once. Updates install straight over the old version —
+            no uninstall, no data loss (the signing key is stable).
+
+            Plan. Spend. Save. Grow. 🌱
+          make_latest: true
+          files: android/app/build/outputs/apk/release/RongaMari.apk
