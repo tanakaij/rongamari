@@ -15,15 +15,18 @@
   var CATEGORY_ICONS = ['🏠','🛒','🚌','💡','📺','⛪','🧰','🎉','🍔','🚕','💊','🎓','👕','📱','💰','🎁','🐾','☕','🛠️','⚽','✈️','🧾'];
   var CATEGORY_COLORS = ['#3F9C35','#70B010','#157A3C','#0A4D22','#E8A13A','#C94F4F','#2C5D8F','#7A5BA8','#C9714F','#4F8FC9'];
 
+  /* cadence: 'monthly' = one lump payment for the whole month, confirmed once.
+     'weekly' = paid in up to five weekly instalments, each confirmed on its own
+     (this is how upkeep — bread, eggs, weekly top-ups — actually works). */
   var DEFAULT_CATEGORIES = [
-    { name: 'Home',          icon: '🏠', budget: 0 },
-    { name: 'Groceries',     icon: '🛒', budget: 0 },
-    { name: 'Transport',     icon: '🚌', budget: 0 },
-    { name: 'Subscriptions', icon: '📺', budget: 0 },
-    { name: 'Tithe',         icon: '⛪', budget: 0 },
-    { name: 'Upkeep',        icon: '🧰', budget: 0 },
-    { name: 'Fun',           icon: '🎉', budget: 0 },
-    { name: 'Savings',       icon: '💰', budget: 0 }
+    { name: 'Home',          icon: '🏠', budget: 0, cadence: 'monthly' },
+    { name: 'Groceries',     icon: '🛒', budget: 0, cadence: 'monthly' },
+    { name: 'Transport',     icon: '🚌', budget: 0, cadence: 'monthly' },
+    { name: 'Subscriptions', icon: '📺', budget: 0, cadence: 'monthly' },
+    { name: 'Tithe',         icon: '⛪', budget: 0, cadence: 'monthly' },
+    { name: 'Upkeep',        icon: '🧰', budget: 0, cadence: 'weekly' },
+    { name: 'Fun',           icon: '🎉', budget: 0, cadence: 'monthly' },
+    { name: 'Projects',      icon: '🏗️', budget: 0, cadence: 'monthly' }
   ];
 
   /* ── month math ──────────────────────────────────────────────── */
@@ -146,7 +149,9 @@
         name: c.name,
         icon: c.icon,
         budget: c.budget,
-        color: CATEGORY_COLORS[i % CATEGORY_COLORS.length]
+        color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+        cadence: c.cadence || 'monthly',
+        note: ''
       };
     });
     save();
@@ -168,7 +173,9 @@
       name: String(cat.name || 'Category').trim().slice(0, 24),
       icon: cat.icon || '🧾',
       budget: Math.max(0, Number(cat.budget) || 0),
-      color: cat.color || CATEGORY_COLORS[m.categories.length % CATEGORY_COLORS.length]
+      color: cat.color || CATEGORY_COLORS[m.categories.length % CATEGORY_COLORS.length],
+      cadence: cat.cadence === 'weekly' ? 'weekly' : 'monthly',
+      note: String(cat.note || '').trim().slice(0, 60)
     };
     m.categories.push(c);
     save();
@@ -183,6 +190,8 @@
     if (patch.icon != null) c.icon = patch.icon;
     if (patch.budget != null) c.budget = Math.max(0, Number(patch.budget) || 0);
     if (patch.color != null) c.color = patch.color;
+    if (patch.cadence != null) c.cadence = patch.cadence === 'weekly' ? 'weekly' : 'monthly';
+    if (patch.note !== undefined) c.note = String(patch.note || '').trim().slice(0, 60);
     save();
     return c;
   }
@@ -193,6 +202,135 @@
     /* Transactions keep their categoryId; they render as "Other" if the
        category is gone. Deleting history would be worse. */
     save();
+  }
+
+  /* ── category payments ──────────────────────────────────────────
+   * A category is "paid" for the month once you've confirmed you've handed
+   * the money over — that confirmation IS the transaction: confirming
+   * writes a single auto-generated expense (tagged `auto: true`) so every
+   * other calculation (totals, insights, exports, charts) keeps working
+   * unchanged. Un-confirming removes it. Weekly-cadence categories get up
+   * to five of these, one per week-of-month bucket. */
+  function findAutoTx(mk, categoryId, weekIndex) {
+    var wk = weekIndex == null ? null : weekIndex;
+    return state.transactions.find(function (t) {
+      return t.auto && t.autoCategory === categoryId && monthKey(t.date) === mk &&
+        (t.autoWeek == null ? null : t.autoWeek) === wk;
+    }) || null;
+  }
+
+  function markCategoryPaid(mk, categoryId, paid, opts) {
+    opts = opts || {};
+    var m = ensureMonth(mk);
+    var c = m.categories.find(function (x) { return x.id === categoryId; });
+    if (!c) return null;
+    var weekIndex = opts.week != null ? opts.week : null;
+    var existing = findAutoTx(mk, categoryId, weekIndex);
+    if (paid) {
+      var defaultAmt = weekIndex != null ? round2(c.budget / 5) : c.budget;
+      var amount = opts.amount != null ? Math.max(0, Number(opts.amount) || 0) :
+        (existing ? existing.amount : defaultAmt);
+      var date = opts.date || (existing ? existing.date : todayStr());
+      if (existing) {
+        existing.amount = round2(amount);
+        existing.date = date;
+      } else {
+        state.transactions.push({
+          id: newId(), date: date, type: 'expense', amount: round2(amount),
+          categoryId: categoryId,
+          note: weekIndex != null ? c.name + ' · week ' + (weekIndex + 1) : c.name + ' · paid',
+          createdAt: Date.now(), auto: true, autoCategory: categoryId, autoWeek: weekIndex
+        });
+      }
+    } else if (existing) {
+      state.transactions = state.transactions.filter(function (x) { return x !== existing; });
+    }
+    save();
+    return true;
+  }
+
+  function categoryPaymentInfo(mk, categoryId) {
+    var m = ensureMonth(mk);
+    var c = m.categories.find(function (x) { return x.id === categoryId; });
+    if (!c) return null;
+    var cadence = c.cadence === 'weekly' ? 'weekly' : 'monthly';
+    if (cadence === 'monthly') {
+      var tx = findAutoTx(mk, categoryId, null);
+      var paidAmt = tx ? tx.amount : 0;
+      return {
+        cadence: cadence, paid: !!tx, amount: tx ? tx.amount : c.budget, date: tx ? tx.date : null,
+        remaining: round2(c.budget - paidAmt), over: paidAmt > c.budget + 0.004
+      };
+    }
+    var weeks = [];
+    for (var i = 0; i < 5; i++) {
+      var wtx = findAutoTx(mk, categoryId, i);
+      weeks.push({ paid: !!wtx, amount: wtx ? wtx.amount : round2(c.budget / 5), date: wtx ? wtx.date : null });
+    }
+    var paidTotal = round2(weeks.reduce(function (s, w) { return s + (w.paid ? w.amount : 0); }, 0));
+    var allPaid = weeks.every(function (w) { return w.paid; });
+    return {
+      cadence: cadence, weeks: weeks, paidTotal: paidTotal, allPaid: allPaid,
+      remaining: round2(c.budget - paidTotal), over: paidTotal > c.budget + 0.004
+    };
+  }
+
+  function categoryPayments(mk) {
+    var m = ensureMonth(mk);
+    var out = {};
+    m.categories.forEach(function (c) { out[c.id] = categoryPaymentInfo(mk, c.id); });
+    return out;
+  }
+
+  /* How much a proposed payment would push a category over its budget, before
+   * it's actually saved — used to warn (not block) at confirm time. Returns a
+   * positive number if it goes over, zero or negative otherwise. */
+  function categoryOverBy(mk, categoryId, weekIndex, amount) {
+    var m = ensureMonth(mk);
+    var c = m.categories.find(function (x) { return x.id === categoryId; });
+    if (!c) return 0;
+    var already = 0;
+    if (c.cadence === 'weekly') {
+      var info = categoryPaymentInfo(mk, categoryId);
+      already = info.weeks.reduce(function (s, w, i) {
+        return s + ((w.paid && i !== weekIndex) ? w.amount : 0);
+      }, 0);
+    }
+    var prospective = round2(already + (Number(amount) || 0));
+    return round2(prospective - c.budget);
+  }
+
+  /* Carry-over: a monthly-cadence category left unpaid at month end (e.g.
+   * still saving toward a purchase) can roll its whole budget into next
+   * month rather than silently vanishing into "spent". Matched by name
+   * since each month owns its own copy of the category list. */
+  function carryOverAvailable(mk, categoryId) {
+    var m = ensureMonth(mk);
+    var c = m.categories.find(function (x) { return x.id === categoryId; });
+    if (!c || c.cadence === 'weekly') return 0;
+    var prevMk = shiftMonth(mk, -1);
+    var pm = state.months[prevMk];
+    if (!pm) return 0;
+    var prevCat = pm.categories.find(function (x) { return x.name === c.name; });
+    if (!prevCat || prevCat.carriedOut || prevCat.budget <= 0) return 0;
+    var info = categoryPaymentInfo(prevMk, prevCat.id);
+    if (info.paid) return 0;
+    return round2(prevCat.budget);
+  }
+
+  function applyCarryOver(mk, categoryId) {
+    var amt = carryOverAvailable(mk, categoryId);
+    if (amt <= 0) return 0;
+    var m = ensureMonth(mk);
+    var c = m.categories.find(function (x) { return x.id === categoryId; });
+    var prevMk = shiftMonth(mk, -1);
+    var pm = state.months[prevMk];
+    var prevCat = pm.categories.find(function (x) { return x.name === c.name; });
+    c.budget = round2(c.budget + amt);
+    c.carriedIn = round2((c.carriedIn || 0) + amt);
+    prevCat.carriedOut = true;
+    save();
+    return amt;
   }
 
   /* ── transactions ────────────────────────────────────────────── */
@@ -354,11 +492,12 @@
     var m = ensureMonth(mk);
     var txs = transactionsIn(mk);
 
-    var spent = 0, extraIncome = 0;
+    var spent = 0, extraIncome = 0, plannedPaid = 0, extraSpent = 0;
     var byCat = {}, weekly = [0, 0, 0, 0, 0];
     txs.forEach(function (t) {
       if (t.type === 'income') { extraIncome += t.amount; return; }
       spent += t.amount;
+      if (t.auto) plannedPaid += t.amount; else extraSpent += t.amount;
       var cid = t.categoryId || 'other';
       byCat[cid] = round2((byCat[cid] || 0) + t.amount);
       weekly[weekOfMonth(t.date)] += t.amount;
@@ -405,6 +544,9 @@
       allocated: budgetTotal,
       unallocated: round2(income - budgetTotal),
       spent: spent,
+      plannedPaid: round2(plannedPaid),
+      extraSpent: round2(extraSpent),
+      stillToPay: round2(Math.max(0, budgetTotal - plannedPaid)),
       remaining: remaining,
       byCategory: cats,
       weekly: weekly,
@@ -415,6 +557,14 @@
       expectedPct: Math.round(day / dim * 100),
       avgPerDay: round2(spent / Math.max(1, day)),
       safePerDay: round2(remaining / Math.max(1, daysLeft || 1)),
+      /* Extra-spend pacing: how the discretionary/unplanned money is being
+         used, scoped to the part of income that isn't already assigned to a
+         category budget. Planned categories are typically paid in full near
+         the start of the month, so pacing that money like a daily allowance
+         would be misleading — only the unallocated portion behaves that way. */
+      extraPct: (income - budgetTotal) > 0 ? Math.round(extraSpent / (income - budgetTotal) * 100) : 0,
+      avgExtraPerDay: round2(extraSpent / Math.max(1, day)),
+      safeExtraPerDay: round2(Math.max(0, (income - budgetTotal) - extraSpent) / Math.max(1, daysLeft || 1)),
       count: txs.filter(function (t) { return t.type === 'expense'; }).length,
       savingsRate: income > 0 ? Math.round(remaining / income * 100) : 0
     };
@@ -468,6 +618,9 @@
     ensureMonth: ensureMonth, seedMonthFromDefaults: seedMonthFromDefaults,
     getMonth: getMonth, setIncome: setIncome,
     addCategory: addCategory, updateCategory: updateCategory, removeCategory: removeCategory,
+    markCategoryPaid: markCategoryPaid, categoryPaymentInfo: categoryPaymentInfo,
+    categoryPayments: categoryPayments, carryOverAvailable: carryOverAvailable,
+    applyCarryOver: applyCarryOver, categoryOverBy: categoryOverBy,
     addTransaction: addTransaction, updateTransaction: updateTransaction,
     removeTransaction: removeTransaction, transactionsIn: transactionsIn,
     addDebt: addDebt, updateDebt: updateDebt, payDebt: payDebt,

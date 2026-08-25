@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RongaMari</title>
-<meta name="description" content="RongaMari — Plan. Spend. Save. Grow. Your personal monthly budget, offline.">
+<meta name="description" content="RongaMari — Plan. Save. Grow. Your personal monthly budget, offline.">
 <link rel="manifest" href="rongamari.manifest.json">
 <link rel="icon" href="resources/favicon-128.png">
 <link rel="apple-touch-icon" href="resources/apple-touch-icon-180.png">
@@ -22,7 +22,7 @@
     <img class="topbar__mark" src="resources/mark.png" alt="" width="26" height="26">
     <div class="topbar__names">
       <h1 class="topbar__title">RongaMari</h1>
-      <span class="topbar__tag">Plan · Spend · Save · Grow</span>
+      <span class="topbar__tag">Plan · Save · Grow</span>
     </div>
   </div>
   <div class="topbar__actions">
@@ -125,24 +125,22 @@
         <p>No categories yet. Add the things you spend on every month.</p>
       </div>
     </div>
-  </section>
 
-  <!-- ═══════════ SPEND ═══════════ -->
-  <section class="view" id="view-spend">
-    <div class="monthbar">
-      <button class="monthbar__nav" id="spendPrev" type="button" aria-label="Previous month">‹</button>
-      <button class="monthbar__label" id="spendMonth" type="button">Month</button>
-      <button class="monthbar__nav" id="spendNext" type="button" aria-label="Next month">›</button>
-    </div>
-
-    <div class="statrow" id="spendStats"></div>
-    <div class="chips" id="spendFilters"></div>
-    <div id="spendGroups"></div>
-    <div class="empty" id="spendEmpty" hidden>
-      <img src="resources/mark.png" alt="" width="56" height="56" class="empty__mark">
-      <h2>Nothing logged yet</h2>
-      <p>Tap <strong>+</strong> to log what you spend. Every entry keeps your
-         monthly picture honest — weekly patterns, category totals, insights.</p>
+    <div class="card">
+      <div class="card__head">
+        <h2>This month's activity</h2>
+        <button class="btn btn--tiny" id="btnAddExtra" type="button">+ Add extra</button>
+      </div>
+      <div class="statrow" id="spendStats"></div>
+      <div class="chips" id="spendFilters"></div>
+      <div id="spendGroups"></div>
+      <div class="empty empty--mini" id="spendEmpty" hidden>
+        <img src="resources/mark.png" alt="" width="56" height="56" class="empty__mark">
+        <h2>Nothing logged yet</h2>
+        <p>Confirm your planned categories as paid above.
+           Use <strong>+ Add extra</strong> only for things that weren't part of the plan —
+           new clothes, an impulse buy, anything along the way.</p>
+      </div>
     </div>
   </section>
 
@@ -228,7 +226,7 @@
   <section class="view" id="view-more">
     <div class="card" id="profileCard">
       <img class="more__logo" src="resources/logo-full.png" alt="RongaMari">
-      <p class="more__tag">Plan · Spend · Save · Grow</p>
+      <p class="more__tag">Plan · Save · Grow</p>
     </div>
 
     <div class="card">
@@ -251,7 +249,7 @@
         <span class="setting__label">Daily check-in time</span><span class="setting__value" id="notifTimeValue">19:30</span>
       </button>
       <button class="setting" id="setThreshold" type="button">
-        <span class="setting__label">Budget alert at</span><span class="setting__value" id="thresholdValue">80%</span>
+        <span class="setting__label">Extra spending alert at</span><span class="setting__value" id="thresholdValue">80%</span>
       </button>
       <button class="setting" id="setDebtDays" type="button">
         <span class="setting__label">Debt reminder before due</span><span class="setting__value" id="debtDaysValue">3 days</span>
@@ -301,10 +299,6 @@
   <button class="navbtn" data-view="plan" type="button" aria-label="Plan">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 3.5V2M16 3.5V2M4 9h16M8 13h3M8 16.5h6"/></svg>
     <span>Plan</span>
-  </button>
-  <button class="navbtn navbtn--mid" data-view="spend" type="button" aria-label="Spend">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M15.5 8.5c-.7-1.2-2-1.8-3.5-1.8-1.9 0-3.4 1-3.4 2.6 0 3.4 7.2 1.7 7.2 5.2 0 1.7-1.7 2.8-3.8 2.8-1.8 0-3.2-.8-3.9-2"/></svg>
-    <span>Spend</span>
   </button>
   <button class="navbtn" data-view="save" type="button" aria-label="Save">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>

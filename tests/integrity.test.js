@@ -60,8 +60,8 @@ check('index.html is wired to the manifest and sw', () => {
   ok(html.match(/theme-color" content="#0A4D22"/), 'theme color matches brand');
 });
 
-check('all five bottom-nav views exist as sections', () => {
-  ['home', 'plan', 'spend', 'save', 'grow'].forEach(v => {
+check('all bottom-nav views exist as sections', () => {
+  ['home', 'plan', 'save', 'grow'].forEach(v => {
     ok(html.includes('id="view-' + v + '"'), 'view-' + v);
   });
   ['debts', 'more'].forEach(v => {

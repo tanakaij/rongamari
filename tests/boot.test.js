@@ -74,7 +74,7 @@ check('top bar reaches debts and more', () => {
   ok(doc.getElementById('view-home').classList.contains('is-active'));
 });
 
-check('logging a transaction shows it on home and spend', () => {
+check('logging a transaction shows it on home and plan', () => {
   const Store = win.RMStore;
   const mk = Store.currentMonthKey();
   const cat = Store.getMonth(mk).categories[0];
@@ -83,9 +83,9 @@ check('logging a transaction shows it on home and spend', () => {
   const home = doc.getElementById('homeRecent').textContent;
   ok(home.includes('test entry'), 'home recent: ' + home.slice(0, 120));
 
-  doc.querySelector('.navbtn[data-view="spend"]').click();
+  doc.querySelector('.navbtn[data-view="plan"]').click();
   const spend = doc.getElementById('spendGroups').textContent;
-  ok(spend.includes('test entry'), 'spend list shows it');
+  ok(spend.includes('test entry'), 'activity list shows it');
   ok(spend.includes('$42.50'), 'amount formatted');
 });
 

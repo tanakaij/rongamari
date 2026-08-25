@@ -38,7 +38,7 @@
   /* ═══════════════════════════════════════════════════════════════
      NAVIGATION
      ═══════════════════════════════════════════════════════════════ */
-  var NAV_VIEWS = ['home', 'plan', 'spend', 'save', 'grow'];
+  var NAV_VIEWS = ['home', 'plan', 'save', 'grow'];
 
   function go(name, isBack) {
     if (!isBack && view !== name && NAV_VIEWS.indexOf(view) !== -1) {
@@ -52,7 +52,7 @@
       b.classList.toggle('is-active', b.getAttribute('data-view') === name);
     });
     var fab = $('fabAdd');
-    fab.style.display = (name === 'home' || name === 'spend') ? '' : 'none';
+    fab.style.display = (name === 'home' || name === 'plan') ? '' : 'none';
     render();
     window.scrollTo({ top: 0 });
   }
@@ -69,8 +69,7 @@
     if (!month) month = Store.currentMonthKey();
     switch (view) {
       case 'home': renderHome(); break;
-      case 'plan': renderPlan(); break;
-      case 'spend': renderSpend(); break;
+      case 'plan': renderPlan(); renderSpend(); break;
       case 'save': renderSave(); break;
       case 'grow': renderGrow(); break;
       case 'debts': renderDebts(); break;
@@ -104,17 +103,19 @@
     var heroAmt = $('heroAmount');
     heroAmt.textContent = money(t.remaining);
     heroAmt.classList.toggle('is-over', t.remaining < 0);
+    var heroEyebrow = document.querySelector('#heroCard .hero__eyebrow');
+    if (heroEyebrow) heroEyebrow.textContent = t.income > 0 ? 'Savings so far' : 'Left this month';
     $('heroSub').textContent = t.income > 0
-      ? 'spent ' + money(t.spent) + ' of ' + money(t.income)
+      ? 'paid out ' + money(t.spent) + ' of ' + money(t.income)
       : (t.spent > 0 ? 'spent ' + money(t.spent) : 'No income set yet');
     var dailyChip = $('heroDaily');
-    if (t.remaining >= 0 && t.daysLeft > 0 && t.income > 0) {
-      dailyChip.className = 'chip chip--safe';
-      dailyChip.textContent = money(t.safePerDay) + '/day safe · ' + t.daysLeft + 'd left';
-      dailyChip.hidden = false;
-    } else if (t.remaining < 0) {
+    if (t.remaining < 0) {
       dailyChip.className = 'chip chip--bad';
       dailyChip.textContent = 'Over budget';
+      dailyChip.hidden = false;
+    } else if (t.unallocated > 0 && t.daysLeft > 0 && t.income > 0) {
+      dailyChip.className = 'chip chip--safe';
+      dailyChip.textContent = money(t.safeExtraPerDay) + '/day free for extras · ' + t.daysLeft + 'd left';
       dailyChip.hidden = false;
     } else {
       dailyChip.hidden = true;
@@ -146,8 +147,8 @@
     var oweTotal = openDebts.reduce(function (s, d) { return s + d.amount - d.paid; }, 0);
     var goalsSaved = S.goals.reduce(function (s, g) { return s + g.saved; }, 0);
     $('homeStats').innerHTML =
-      stat('Spent', money(t.spent), t.count + ' transactions', 'spend') +
-      stat('Budget left', money(Math.max(0, t.budgetTotal - t.spent)), 'of ' + money(t.budgetTotal) + ' planned', 'plan') +
+      stat('Paid out', money(t.spent), t.count + ' logged', 'plan') +
+      stat('Still to pay', money(t.stillToPay), 'of ' + money(t.budgetTotal) + ' planned', 'plan') +
       stat('I owe', money(oweTotal), openDebts.length + ' pending', 'debts') +
       stat('In goals', money(goalsSaved), S.goals.length + ' goals', 'save');
 
@@ -204,10 +205,11 @@
     var hint = $('homeHint');
     if (t.income === 0 && !Store.anyData()) {
       hint.innerHTML = '👋 Welcome! Start in <strong>Plan</strong>: set your monthly income and ' +
-        'give it jobs. Then log spending with the <strong>+</strong> button.';
+        'give it jobs. When you pay each one, tap it and confirm — anything extra along the ' +
+        'way gets logged with the <strong>+</strong> button.';
       hint.hidden = false;
     } else if (t.income === 0) {
-      hint.innerHTML = 'Set your monthly income in <strong>Plan</strong> to unlock pacing and safe-to-spend.';
+      hint.innerHTML = 'Set your monthly income in <strong>Plan</strong> so your savings can be worked out.';
       hint.hidden = false;
     } else {
       hint.hidden = true;
@@ -242,7 +244,7 @@
     return '<li><button class="txrow" data-tx="' + t.id + '" type="button">' +
       '<span class="txico">' + ico + '</span>' +
       '<span class="txmain"><span class="txmain__t">' + esc(name) + '</span>' +
-      '<span class="txmain__s">' + esc(sub) + ' · ' + fmtDate(t.date) + '</span></span>' +
+      '<span class="txmain__s">' + esc(sub) + ' · ' + fmtDate(t.date) + (t.auto ? ' · planned' : '') + '</span></span>' +
       '<span class="txamt ' + (t.type === 'income' ? 'is-income' : 'is-expense') + '">' +
       (t.type === 'income' ? '+' : '') + money(t.amount) + '</span></button></li>';
   }
@@ -274,11 +276,30 @@
       '</span></div>');
 
     $('planCats').innerHTML = m.categories.map(function (c) {
-      var ct = t.byCategory.find(function (x) { return x.id === c.id; }) || { spent: 0 };
+      var pay = Store.categoryPaymentInfo(month, c.id);
+      var statusText, statusClass;
+      if (pay.cadence === 'weekly') {
+        var paidWeeks = pay.weeks.filter(function (w) { return w.paid; }).length;
+        statusText = paidWeeks + ' of ' + pay.weeks.length + ' weeks paid · ' +
+          money(pay.paidTotal) + ' of ' + money(c.budget) + ' used · ' +
+          (pay.over ? 'over by ' + money(-pay.remaining) : money(pay.remaining) + ' left');
+        statusClass = pay.over ? 'is-over' : (pay.allPaid ? 'is-paid' : (paidWeeks > 0 ? 'is-partial' : 'is-unpaid'));
+      } else if (pay.paid) {
+        statusText = pay.over
+          ? 'Paid ' + money(pay.amount) + ' · over by ' + money(-pay.remaining)
+          : 'Paid' + (pay.date ? ' · ' + fmtDate(pay.date) : '');
+        statusClass = pay.over ? 'is-over' : 'is-paid';
+      } else {
+        statusText = 'Not paid yet';
+        statusClass = 'is-unpaid';
+      }
+      var carry = Store.carryOverAvailable(month, c.id);
       return '<li><button class="catrow" data-cat-edit="' + c.id + '" type="button">' +
         '<span class="catrow__ico" style="background:' + esc(c.color) + '1A">' + c.icon + '</span>' +
-        '<span class="catrow__main"><span class="catrow__name">' + esc(c.name) + '</span>' +
-        '<span class="catrow__sub">' + money(ct.spent) + ' spent</span></span>' +
+        '<span class="catrow__main"><span class="catrow__name">' + esc(c.name) +
+        (c.note ? ' <span class="catrow__note">· ' + esc(c.note) + '</span>' : '') + '</span>' +
+        '<span class="catrow__sub"><span class="paytag ' + statusClass + '">' + statusText + '</span>' +
+        (carry > 0 ? ' <span class="paytag is-carry">+' + money(carry) + ' carried</span>' : '') + '</span></span>' +
         '<span class="catrow__amt">' + money(c.budget) + '</span>' +
         '<span class="catrow__chev">›</span></button></li>';
     }).join('');
@@ -315,6 +336,11 @@
       { name: 'budget', label: 'Monthly budget', type: 'number',
         value: existing ? existing.budget : '', placeholder: '0.00', inputmode: 'decimal',
         min: 0, step: '0.01' },
+      { name: 'cadence', label: 'How do you pay this?', type: 'segment',
+        value: existing ? (existing.cadence || 'monthly') : 'monthly',
+        options: [{ value: 'monthly', label: 'Once a month' }, { value: 'weekly', label: 'Weekly' }] },
+      { name: 'note', label: "What's this for? (optional)", type: 'text',
+        value: existing ? (existing.note || '') : '', placeholder: 'e.g. saving for a water tank' },
       { name: 'color', label: 'Colour', type: 'icons', value: existing ? existing.color : Store.CATEGORY_COLORS[0],
         options: Store.CATEGORY_COLORS }
     ];
@@ -350,7 +376,7 @@
       onYes: function () {
         var weights = {
           'Home': 0.28, 'Groceries': 0.15, 'Transport': 0.10, 'Subscriptions': 0.05,
-          'Tithe': 0.10, 'Upkeep': 0.07, 'Fun': 0.05, 'Savings': 0.15
+          'Tithe': 0.10, 'Upkeep': 0.07, 'Fun': 0.05, 'Projects': 0.15
         };
         var known = 0;
         m.categories.forEach(function (c) {
@@ -385,10 +411,106 @@
       onYes: function () {
         var m = Store.getMonth(month);
         m.categories = prev.categories.map(function (c) {
-          return { id: Store.newId(), name: c.name, icon: c.icon, budget: c.budget, color: c.color };
+          return {
+            id: Store.newId(), name: c.name, icon: c.icon, budget: c.budget, color: c.color,
+            cadence: c.cadence || 'monthly', note: c.note || ''
+          };
         });
         Store.save();
         UI.toast('Copied from ' + Store.monthShort(Store.shiftMonth(month, -1)));
+        render();
+      }
+    });
+  }
+
+  /* ── pay / confirm a category ────────────────────────────────── */
+  function categoryActionsSheet(c) {
+    var money = cur();
+    var pay = Store.categoryPaymentInfo(month, c.id);
+    var carry = Store.carryOverAvailable(month, c.id);
+    var acts = [];
+
+    if (pay.cadence === 'monthly') {
+      if (pay.paid) {
+        acts.push({ label: 'Paid ' + money(pay.amount) + (pay.date ? ' on ' + fmtDate(pay.date) : '') + ' — undo',
+          icon: '↩️', onClick: function () {
+            Store.markCategoryPaid(month, c.id, false);
+            UI.toast('Marked as not paid');
+            render();
+          } });
+      } else {
+        acts.push({ label: 'Mark ' + money(c.budget) + ' as paid', icon: '✅', kind: 'primary',
+          onClick: function () { payAmountSheet(c, null); } });
+      }
+    } else {
+      pay.weeks.forEach(function (w, i) {
+        var label = w.paid
+          ? 'Week ' + (i + 1) + ' · paid ' + money(w.amount) + ' — undo'
+          : 'Week ' + (i + 1) + ' · ' + money(w.amount) + ' — mark paid';
+        acts.push({ label: label, icon: w.paid ? '✅' : '⬜', onClick: function () {
+          if (w.paid) {
+            Store.markCategoryPaid(month, c.id, false, { week: i });
+            UI.toast('Week ' + (i + 1) + ' unmarked');
+            render();
+          } else {
+            payAmountSheet(c, i);
+          }
+        } });
+      });
+    }
+
+    if (carry > 0) {
+      acts.push({ label: 'Carry ' + money(carry) + ' forward from last month', icon: '⏭️', onClick: function () {
+        Store.applyCarryOver(month, c.id);
+        UI.toast(money(carry) + ' added to this month\'s budget');
+        render();
+      } });
+    }
+
+    acts.push({ label: 'Edit category', icon: '✏️', onClick: function () { categorySheet(c); } });
+    acts.push({ label: 'See its spending', icon: '🔍', onClick: function () { spendFilter = c.id; go('plan'); } });
+    acts.push({ label: 'Delete category', icon: '🗑️', kind: 'danger', onClick: function () {
+        UI.confirm({
+          title: 'Delete ' + c.name + '?',
+          message: 'Its budget is removed from the plan. Transactions already logged are kept and shown as Other.',
+          confirmLabel: 'Delete',
+          onYes: function () { Store.removeCategory(month, c.id); UI.toast('Category deleted'); render(); }
+        });
+      } });
+
+    UI.actions({
+      title: c.icon + ' ' + c.name,
+      message: money(c.budget) + ' budgeted' + (c.note ? ' · ' + c.note : '') +
+        (pay.cadence === 'weekly'
+          ? ' · ' + money(pay.paidTotal) + ' of ' + money(c.budget) + ' used · ' +
+            (pay.over ? 'over by ' + money(-pay.remaining) : money(pay.remaining) + ' left')
+          : ''),
+      actions: acts
+    });
+  }
+
+  function payAmountSheet(c, weekIndex) {
+    var money = cur();
+    var defaultAmt = weekIndex != null ? Store.round2(c.budget / 5) : c.budget;
+    UI.show({
+      title: 'Confirm payment · ' + c.icon + ' ' + c.name + (weekIndex != null ? ' · week ' + (weekIndex + 1) : ''),
+      fields: [
+        { name: 'amount', label: 'Amount paid', type: 'number', value: defaultAmt,
+          placeholder: '0.00', inputmode: 'decimal', min: 0, step: '0.01' },
+        { name: 'date', label: 'Date paid', type: 'date', value: Store.todayStr() }
+      ],
+      saveLabel: 'Confirm paid',
+      onSave: function (v) {
+        var amount = parseFloat(v.amount);
+        if (!amount || amount <= 0) { UI.toast('Enter an amount'); return false; }
+        var overBy = Store.categoryOverBy(month, c.id, weekIndex, amount);
+        Store.markCategoryPaid(month, c.id, true, { amount: amount, date: v.date, week: weekIndex });
+        if (overBy > 0.004) {
+          UI.toast(money(amount) + ' paid — ' + money(overBy) + ' over ' + c.name + '\'s budget, coming out of savings');
+        } else {
+          UI.toast(money(amount) + ' marked as paid');
+        }
+        checkBudgetAlert();
         render();
       }
     });
@@ -402,13 +524,11 @@
     var t = Store.totals(month);
     var m = Store.getMonth(month);
 
-    $('spendMonth').textContent = Store.monthLabel(month);
-
     $('spendStats').innerHTML =
-      stat('Spent', money(t.spent), t.count + ' expenses', null) +
-      stat('Income', money(t.income), t.extraIncome > 0 ? '+' + money(t.extraIncome) + ' logged' : 'monthly', null) +
-      stat('Avg / day', money(t.avgPerDay), 'day ' + Math.min(t.day, t.daysInMonth) + ' of ' + t.daysInMonth, null) +
-      stat('Biggest week', biggestWeek(t), 'of ' + Store.monthShort(month), null);
+      stat('Paid (planned)', money(t.plannedPaid), 'confirmed above', null) +
+      stat('Extra spending', money(t.extraSpent), 'not part of the plan', null) +
+      stat('Still to pay', money(t.stillToPay), 'of ' + money(t.budgetTotal) + ' planned', null) +
+      stat('Savings so far', money(t.remaining), t.income > 0 ? 'of ' + money(t.income) + ' income' : 'set income first', null);
 
     /* filter chips */
     var chips = ['<button class="pill' + (spendFilter ? '' : ' is-active') + '" data-filter="" type="button">All</button>']
@@ -495,6 +615,7 @@
 
   function txActions(t) {
     var c = catOf(t.categoryId);
+    if (t.auto && c) { categoryActionsSheet(c); return; }
     UI.actions({
       title: (t.type === 'income' ? '+' : '') + cur()(t.amount) + ' · ' + (t.note || (c ? c.name : 'Transaction')),
       message: fmtDateLong(t.date) + (c ? ' · ' + c.name : ''),
@@ -631,7 +752,7 @@
     $('growStats').innerHTML =
       stat('Savings rate', t.income > 0 ? t.savingsRate + '%' : '—',
         t.income > 0 ? 'of income kept' : 'set income first', null) +
-      stat('Safe / day', t.remaining >= 0 ? money(t.safePerDay) : '—',
+      stat('Extras / day', t.unallocated > 0 && t.remaining >= 0 ? money(t.safeExtraPerDay) : '—',
         t.daysLeft + ' days left', null) +
       stat('Budget used', t.budgetTotal > 0 ? Math.round(t.spent / t.budgetTotal * 100) + '%' : '—',
         money(t.budgetTotal) + ' planned', null) +
@@ -896,8 +1017,8 @@
   function thresholdSheet() {
     var S = Store.peek();
     UI.show({
-      title: 'Budget alert',
-      fields: [{ name: 'threshold', label: 'Alert me when spending reaches', type: 'select',
+      title: 'Extra spending alert',
+      fields: [{ name: 'threshold', label: 'Alert me when unplanned extras reach', type: 'select',
         value: String(S.settings.notif.threshold),
         options: ['50', '60', '70', '80', '90'].map(function (v) { return { value: v, label: v + '% of income' }; }) }],
       onSave: function (v) {
@@ -1006,7 +1127,7 @@
             notifications.push({
               id: 900001,
               title: 'RongaMari check-in',
-              body: 'Take a minute: log what you spent today and keep the month honest.',
+              body: 'Anything extra to log today? A quick check keeps the month honest.',
               smallIcon: 'ic_notification',
               iconColor: '#0A4D22',
               schedule: { on: { hour: parseInt(parts[0], 10) || 19, minute: parseInt(parts[1], 10) || 30 }, allowWhileIdle: true },
@@ -1017,7 +1138,7 @@
             notifications.push({
               id: 900002,
               title: 'Your week in review',
-              body: 'Sunday is a good day to look at the week\'s spending and set up the next one.',
+              body: 'Sunday\'s a good time to confirm this week\'s Upkeep payment and log any extras.',
               smallIcon: 'ic_notification',
               iconColor: '#0A4D22',
               schedule: { on: { weekday: 7, hour: 18, minute: 0 }, allowWhileIdle: true },
@@ -1080,21 +1201,31 @@
     var mk = Store.currentMonthKey();
     var t = Store.totals(mk);
     if (t.income <= 0) return;
-    var pct = t.spent / t.income * 100;
     var fired = S.meta.alerts;
     fired[mk] = fired[mk] || {};
     var level = null;
-    if (pct >= n.threshold && !fired[mk][n.threshold]) level = n.threshold;
-    if (pct >= 100 && !fired[mk][100]) level = 100;
+    /* Real overspend — total paid out (planned + extra) beats income. This
+       still matters no matter how the money was spent. */
+    if (t.spent >= t.income && !fired[mk][100]) {
+      level = 100;
+    } else {
+      /* Paying your planned categories in full early in the month is normal
+         and shouldn't trip an alert — so the threshold now watches unplanned
+         "extra" spending against income, not total spend. */
+      var extraPct = t.extraSpent / t.income * 100;
+      if (extraPct >= n.threshold && !fired[mk][n.threshold]) level = n.threshold;
+    }
     if (level == null) return;
     fired[mk][level] = true;
     Store.save();
+    var cs = S.settings.currency || '$';
     Notifs.fire(
-      level >= 100 ? 'Monthly budget exceeded' : 'Budget alert: ' + level + '%',
+      level >= 100 ? 'Monthly budget exceeded' : 'Extra spending alert: ' + level + '%',
       level >= 100
-        ? 'You have spent more than your income this month. Check Grow for where it went.'
-        : 'You have used ' + Math.round(pct) + '% of this month\'s income with ' +
-          t.daysLeft + ' days to go. Safe to spend: ' + (S.settings.currency || '$') + t.safePerDay.toFixed(2) + '/day.'
+        ? 'You have paid out more than your income this month. Check Grow for where it went.'
+        : 'Unplanned extras have reached ' + Math.round(t.extraSpent / t.income * 100) +
+          '% of this month\'s income (' + cs + t.extraSpent.toFixed(2) +
+          '). Check the activity list in Plan to see what\'s adding up.'
     );
   }
 
@@ -1180,7 +1311,7 @@
       money: money,
       tot: t,
       subline: t.income > 0
-        ? 'Income ' + money(t.income) + ' · ' + t.count + ' expenses · average ' + money(t.avgPerDay) + '/day · safe ' + money(t.safePerDay) + '/day for the rest of the month.'
+        ? 'Income ' + money(t.income) + ' · ' + t.count + ' expenses · ' + money(t.spent) + ' paid out · ' + money(t.remaining) + ' saved so far.'
         : 'No income recorded for this month — totals below cover spending only.',
       weeks: usedWeeks,
       txCount: t.count,
@@ -1285,52 +1416,36 @@
     /* month navs */
     monthNav('homePrev', 'homeNext', 'homeMonth');
     monthNav('planPrev', 'planNext', 'planMonth');
-    monthNav('spendPrev', 'spendNext', 'spendMonth');
     monthNav('growPrev', 'growNext', 'growMonth');
 
     /* home card taps */
-    $('cardWeek').addEventListener('click', function () { go('spend'); });
+    $('cardWeek').addEventListener('click', function () { go('plan'); });
     $('cardCats').addEventListener('click', function () { go('plan'); });
     $('cardDebts').addEventListener('click', function () { go('debts'); });
     $('cardGoals').addEventListener('click', function () { go('save'); });
     $('cardInsight').addEventListener('click', function () { go('grow'); });
-    $('cardRecent').addEventListener('click', function () { go('spend'); });
+    $('cardRecent').addEventListener('click', function () { go('plan'); });
     $('homeStats').addEventListener('click', function (e) {
       var s = e.target.closest('.stat');
       if (s && s.getAttribute('data-go')) go(s.getAttribute('data-go'));
     });
     $('homeCats').addEventListener('click', function (e) {
       var bar = e.target.closest('[data-cat]');
-      if (bar) { spendFilter = bar.getAttribute('data-cat'); go('spend'); }
+      if (bar) { spendFilter = bar.getAttribute('data-cat'); go('plan'); }
     });
     $('homeRecent').addEventListener('click', txListHandler);
 
     /* plan */
     $('incomeCard').addEventListener('click', incomeSheet);
     $('btnAddCat').addEventListener('click', function () { categorySheet(null); });
+    $('btnAddExtra').addEventListener('click', function () { txSheet(null, 'expense'); });
     $('btnCopyPrev').addEventListener('click', copyPrevMonth);
     $('btnAutoPlan').addEventListener('click', autoPlan);
     $('planCats').addEventListener('click', function (e) {
       var row = e.target.closest('[data-cat-edit]');
       if (!row) return;
       var c = Store.getMonth(month).categories.find(function (x) { return x.id === row.getAttribute('data-cat-edit'); });
-      if (!c) return;
-      UI.actions({
-        title: c.icon + ' ' + c.name,
-        message: 'Budget ' + cur()(c.budget) + ' · spent ' + cur()(Store.totals(month).byCategory.find(function (x) { return x.id === c.id; }) || { spent: 0 }).spent,
-        actions: [
-          { label: 'Edit category', icon: '✏️', kind: 'primary', onClick: function () { categorySheet(c); } },
-          { label: 'See its spending', icon: '🔍', onClick: function () { spendFilter = c.id; go('spend'); } },
-          { label: 'Delete category', icon: '🗑️', kind: 'danger', onClick: function () {
-              UI.confirm({
-                title: 'Delete ' + c.name + '?',
-                message: 'Its budget is removed from the plan. Transactions already logged are kept and shown as Other.',
-                confirmLabel: 'Delete',
-                onYes: function () { Store.removeCategory(month, c.id); UI.toast('Category deleted'); render(); }
-              });
-            } }
-        ]
-      });
+      if (c) categoryActionsSheet(c);
     });
 
     /* spend */

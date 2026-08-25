@@ -40,26 +40,32 @@
 
     /* ── 1. pacing ─────────────────────────────────────────────── */
     if (isCurrent && t.income > 0 && t.day <= t.daysInMonth) {
-      var drift = t.spentPct - t.expectedPct;
       if (t.remaining < 0) {
         add('bad', '🚨', 'Over budget',
             'You have spent ' + money(-t.remaining) + ' more than your ' +
             money(t.income) + ' income this month. Time to pause non-essentials.');
-      } else if (drift > 12 && t.spent > 0) {
-        var proj = t.avgPerDay * t.daysInMonth;
-        add('warn', '⏱️', 'Spending fast',
-            'By day ' + t.day + ' a steady month would be ' + t.expectedPct +
-            '% gone — you are at ' + t.spentPct + '%. At this pace the month ends around ' +
-            money(proj) + ' against ' + money(t.income) + ' in.');
-      } else if (drift < -10 && t.spent > 0) {
-        add('good', '🌿', 'Comfortably on track',
-            'Only ' + t.spentPct + '% of your income used by day ' + t.day +
-            ' (expected ' + t.expectedPct + '%). ' + money(t.safePerDay) +
-            '/day is your safe space for the rest of ' + label + '.');
-      } else if (t.spent > 0) {
-        add('good', '✅', 'On pace',
-            t.spentPct + '% of income used on day ' + t.day + ' of ' + t.daysInMonth +
-            '. Keep roughly ' + money(t.safePerDay) + '/day and you finish the month whole.');
+      } else if (t.unallocated > 0) {
+        /* Planned categories are usually paid in full near the start of the
+           month, so pacing against total spend would flag that as "fast"
+           every time. Instead this tracks the part of income you haven't
+           assigned to a category — the money extras actually come out of. */
+        var extraDrift = t.extraPct - t.expectedPct;
+        if (extraDrift > 12 && t.extraSpent > 0) {
+          var proj = t.avgExtraPerDay * t.daysInMonth;
+          add('warn', '⏱️', 'Extra spending fast',
+              'By day ' + t.day + ' a steady month would have used ' + t.expectedPct +
+              '% of your ' + money(t.unallocated) + ' unplanned money — you are at ' +
+              t.extraPct + '%. At this pace extras alone could reach ' + money(proj) + ' this month.');
+        } else if (extraDrift < -10 && t.extraSpent > 0) {
+          add('good', '🌿', 'Extras comfortably on track',
+              'Only ' + t.extraPct + '% of your ' + money(t.unallocated) + ' unplanned money used by day ' +
+              t.day + ' (expected ' + t.expectedPct + '%). ' + money(t.safeExtraPerDay) +
+              '/day is your safe space for extras for the rest of ' + label + '.');
+        } else if (t.extraSpent > 0) {
+          add('good', '✅', 'On pace',
+              t.extraPct + '% of your unplanned money used on extras by day ' + t.day + ' of ' + t.daysInMonth +
+              '. Keep roughly ' + money(t.safeExtraPerDay) + '/day and you finish the month whole.');
+        }
       }
     }
 

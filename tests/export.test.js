@@ -25,7 +25,7 @@ function model() {
       ],
       weekly: [120, 90, 100, 90, 0],
       day: 24, daysInMonth: 31, daysLeft: 7,
-      avgPerDay: 16.67, safePerDay: 114.29, count: 12, savingsRate: 67
+      avgPerDay: 16.67, safePerDay: 114.29, extraSpent: 0, safeExtraPerDay: 42.86, count: 12, savingsRate: 67
     },
     subline: 'Income $1,200.00 · 12 expenses.',
     weeks: [

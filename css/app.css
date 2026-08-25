@@ -323,9 +323,21 @@ img { display: block; }
 }
 .catrow__main { flex: 1; min-width: 0; }
 .catrow__name { font-size: 13.5px; font-weight: 750; }
-.catrow__sub { font-size: 11.5px; color: var(--muted); }
+.catrow__note { font-weight: 500; color: var(--muted); }
+.catrow__sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; }
 .catrow__amt { font-size: 13.5px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .catrow__chev { color: var(--faint); font-size: 18px; }
+
+.paytag {
+  display: inline-flex; align-items: center;
+  padding: 2px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700;
+}
+.paytag.is-paid    { background: var(--good-bg); color: var(--good); }
+.paytag.is-partial { background: var(--warn-bg); color: var(--warn); }
+.paytag.is-unpaid  { background: var(--line); color: var(--muted); }
+.paytag.is-carry   { background: var(--good-bg); color: var(--good); }
+.paytag.is-over    { background: var(--danger-bg); color: var(--danger); }
 
 /* ── chips (filters) ─────────────────────────────────────────── */
 .chips {

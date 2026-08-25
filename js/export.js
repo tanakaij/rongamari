@@ -612,7 +612,7 @@
       ['Budgeted across categories', { v: m.tot.budgetTotal, s: 2 }],
       ['Unallocated income', { v: m.tot.unallocated, s: 2 }],
       ['Transactions logged', { v: m.txCount, s: 6 }],
-      ['Safe to spend per day (rest of month)', { v: m.tot.safePerDay, s: 2 }],
+      ['Safe extra spending per day (rest of month)', { v: m.tot.safeExtraPerDay || 0, s: 2 }],
       ['Average spend per day', { v: m.tot.avgPerDay, s: 2 }],
       [''],
       ['Week 1', { v: m.tot.weekly[0], s: 2 }],

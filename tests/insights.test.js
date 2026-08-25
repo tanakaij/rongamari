@@ -14,6 +14,9 @@ function mkTotals(over) {
     allocated: 800,
     unallocated: 200,
     spent: 0,
+    plannedPaid: 0,
+    extraSpent: 0,
+    stillToPay: 800,
     remaining: 1000,
     byCategory: [],
     weekly: [0, 0, 0, 0, 0],
@@ -24,6 +27,9 @@ function mkTotals(over) {
     expectedPct: 26,
     avgPerDay: 0,
     safePerDay: 43,
+    extraPct: 0,
+    avgExtraPerDay: 0,
+    safeExtraPerDay: 9,
     count: 0,
     savingsRate: 100
   }, over);
@@ -55,16 +61,16 @@ check('overspend fires the bad alert', () => {
   ok(out.some(i => i.tone === 'bad' && i.title === 'Over budget'));
 });
 
-check('spending fast warns with a projection', () => {
-  const out = gen({ totals: mkTotals({ spent: 500, spentPct: 50, expectedPct: 26, avgPerDay: 62.5 }) });
-  const hit = out.find(i => i.title === 'Spending fast');
-  ok(hit, 'expected "Spending fast", got: ' + JSON.stringify(out.map(i => i.title)));
+check('extra spending fast warns with a projection', () => {
+  const out = gen({ totals: mkTotals({ extraSpent: 100, extraPct: 50, avgExtraPerDay: 12.5 }) });
+  const hit = out.find(i => i.title === 'Extra spending fast');
+  ok(hit, 'expected "Extra spending fast", got: ' + JSON.stringify(out.map(i => i.title)));
   ok(hit.body.includes('$'), 'projection should mention money');
 });
 
 check('on-pace month gets the good word', () => {
-  const out = gen({ totals: mkTotals({ spent: 250, spentPct: 25, avgPerDay: 31.25 }) });
-  ok(out.some(i => i.title === 'On pace' || i.title === 'Comfortably on track'));
+  const out = gen({ totals: mkTotals({ extraSpent: 50, extraPct: 25, avgExtraPerDay: 6.25 }) });
+  ok(out.some(i => i.title === 'On pace' || i.title === 'Extras comfortably on track'));
 });
 
 check('category over budget is flagged by name', () => {
@@ -187,10 +193,10 @@ check('headline picks the most urgent', () => {
 
 check('money formatting folds currency through', () => {
   const out = gen({
-    totals: mkTotals({ spent: 500, spentPct: 50, expectedPct: 26, avgPerDay: 62.5 }),
+    totals: mkTotals({ extraSpent: 100, extraPct: 50, avgExtraPerDay: 12.5 }),
     currency: 'ZiG'
   });
-  const hit = out.find(i => i.title === 'Spending fast');
+  const hit = out.find(i => i.title === 'Extra spending fast');
   ok(hit.body.includes('ZiG'), 'custom currency symbol should appear');
 });
 
