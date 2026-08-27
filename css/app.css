@@ -179,6 +179,41 @@ img { display: block; }
 .tapcard { cursor: pointer; transition: transform 0.14s, box-shadow 0.14s; }
 .tapcard:active { transform: scale(0.982); }
 
+/* ── universal tactile feedback ──────────────────────────────────
+   Every interactive control gets a consistent press-down response
+   and, on devices with a real pointer, a gentle hover lift. Kept
+   here as one rule set so nothing interactive is ever left "dead". */
+button, [role="button"], .catbar, summary {
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease, opacity 0.12s ease;
+}
+button:active, [role="button"]:active { transform: scale(0.975); }
+.catrow:active, .txrow:active, .setting:active, .setting--toggle:active { background: var(--green-50); }
+.card--feature .catrow:active { background: rgba(255,255,255,0.08); }
+.stat:active, .grow-row:active, .monthbar__nav:active { transform: scale(0.96); }
+
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, .switch:focus-visible {
+  outline: 2px solid var(--green-500);
+  outline-offset: 2px;
+}
+.navbtn:focus-visible, .fab:focus-visible, .iconbtn:focus-visible { outline-offset: -2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .card.tapcard:hover, .stat:hover, .grow-row:hover, .catrow:hover, .txrow:hover {
+    box-shadow: var(--shadow-lift);
+  }
+  .catbar:hover { background: var(--green-50); }
+  .card--feature .catbar:hover { background: rgba(255,255,255,0.08); }
+  .hero:hover, .card--feature:hover, #cardInsight:hover { box-shadow: 0 14px 34px rgba(11, 61, 34, 0.34); }
+  .btn--primary:hover { box-shadow: 0 10px 24px rgba(11, 61, 34, 0.36); }
+  .btn--ghost:hover { background: var(--green-50); }
+  .pill:hover:not(.is-active) { background: var(--green-50); color: var(--green-900); }
+  .navbtn:hover:not(.is-active) { background: var(--green-50); color: var(--green-900); }
+  .fab:hover { box-shadow: 0 14px 32px rgba(11, 61, 34, 0.5), 0 2px 6px rgba(11, 61, 34, 0.32); }
+  .iconbtn:hover { background: rgba(255, 255, 255, 0.22); }
+  .setting:hover, .iconpick button:hover, .quickamt button:hover { background: var(--green-50); }
+}
+
 /* ── month switcher ──────────────────────────────────────────── */
 .monthbar {
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -249,6 +284,45 @@ img { display: block; }
 .chip--warn { background: rgba(221, 185, 79, 0.24); color: #F3D888; }
 .chip--bad  { background: rgba(255, 138, 128, 0.24); color: #FFB3AB; }
 
+/* ── feature cards (Plan income, Save total — same premium dark
+   treatment as the hero, reused via local token overrides) ────── */
+.card--feature {
+  --ink: #FFFFFF;
+  --muted: rgba(255, 255, 255, 0.74);
+  --faint: rgba(255, 255, 255, 0.55);
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(280px 200px at -10% -25%, rgba(44, 168, 85, 0.32), transparent 60%),
+    radial-gradient(260px 200px at 112% 120%, rgba(221, 185, 79, 0.24), transparent 60%),
+    linear-gradient(155deg, var(--green-950) 0%, var(--green-900) 55%, var(--green-700) 135%);
+  box-shadow: 0 10px 28px rgba(11, 61, 34, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.card--feature::before {
+  content: "";
+  position: absolute; inset: 0 0 auto 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.32), transparent);
+}
+.card--feature .card__head, .card--feature .income,
+.card--feature .allocbar, .card--feature .alloclegend { position: relative; z-index: 1; }
+.card--feature .card__link { color: var(--gold-400); }
+.card--feature .allocbar { background: rgba(255, 255, 255, 0.14); }
+
+/* ── trend / summary cards (Grow, Debts) — light card, gold hairline
+   accent for a touch of premium without going full dark ──────── */
+.card--trend {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(201, 162, 39, 0.18);
+}
+.card--trend::before {
+  content: "";
+  position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, var(--green-700), var(--gold-500));
+}
+
 /* ── stat tiles ──────────────────────────────────────────────── */
 .statrow {
   display: grid;
@@ -294,8 +368,15 @@ img { display: block; }
 .chart svg { display: block; width: 100%; height: auto; }
 
 /* ── category bars (home) ────────────────────────────────────── */
-.catbars { display: flex; flex-direction: column; gap: 13px; }
-.catbar { cursor: pointer; }
+.catbars { display: flex; flex-direction: column; gap: 9px; }
+.catbar {
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 10px;
+}
+.catbar:active { background: var(--green-50); }
+.card--feature .catbar:active { background: rgba(255,255,255,0.08); }
 .catbar__top {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   font-size: 13px; font-weight: 650;
@@ -314,9 +395,12 @@ img { display: block; }
 .txlist { display: flex; flex-direction: column; }
 .txrow {
   display: flex; align-items: center; gap: 12px;
-  padding: 11px 0;
+  padding: 11px 8px;
+  margin: 0 -8px;
+  width: calc(100% + 16px);
+  border-radius: 12px;
   border-bottom: 1px solid var(--line);
-  cursor: pointer; text-align: left; width: 100%;
+  cursor: pointer; text-align: left;
 }
 .txlist .txrow:last-child { border-bottom: 0; padding-bottom: 2px; }
 .txico {
@@ -361,8 +445,10 @@ img { display: block; }
 .catlist { display: flex; flex-direction: column; }
 .catrow {
   display: flex; align-items: center; gap: 12px;
-  width: 100%; text-align: left;
-  padding: 12px 0;
+  width: calc(100% + 16px); text-align: left;
+  padding: 12px 8px;
+  margin: 0 -8px;
+  border-radius: 12px;
   border-bottom: 1px solid var(--line);
 }
 .catlist .catrow:last-child { border-bottom: 0; padding-bottom: 2px; }
@@ -702,8 +788,10 @@ img { display: block; }
 /* ── settings rows ───────────────────────────────────────────── */
 .setting {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  width: 100%; text-align: left;
-  padding: 14px 0;
+  width: calc(100% + 16px); text-align: left;
+  padding: 14px 8px;
+  margin: 0 -8px;
+  border-radius: 12px;
   border-bottom: 1px solid var(--line);
 }
 .card .setting:last-of-type { border-bottom: 0; padding-bottom: 4px; }

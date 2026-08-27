@@ -18,8 +18,9 @@ import pathlib
 import shutil
 import sys
 
-# The brand is green-on-white: white tile, green R. Matches the logo exactly.
-BACKGROUND = "#FFFFFF"
+# The brand's premium tile is deep forest green with a white silhouette of
+# the mark — matches the app icon set rendered by tools/make_assets.py.
+BACKGROUND = "#0B3D22"
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "resources" / "android"

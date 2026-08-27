@@ -24,7 +24,9 @@ RES = ROOT / "resources"
 OUT = RES / "android"
 
 WHITE = (255, 255, 255, 255)
-GREEN_DARK = (10, 77, 34, 255)      # status bar / theme chrome
+GREEN_DEEP = (5, 37, 20, 255)        # --green-950, splash gradient top
+GREEN_DARK = (11, 61, 34, 255)       # --green-900, tile / status bar / theme chrome
+GOLD = (201, 162, 39)                # --gold-500, used only as a soft glow accent
 
 
 # ── white-matte removal ────────────────────────────────────────────────────
@@ -119,42 +121,83 @@ def center_composite(tile, art):
 
 
 def legacy_launcher(mark, size):
-    """Pre-Android-8 icon: the mark on a white tile with rounded corners."""
+    """Pre-Android-8 icon: a white silhouette of the mark on the premium
+    deep-green tile, rounded corners."""
     tile = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     radius = max(2, int(size * 0.18))
     shape = Image.new("L", (size, size), 0)
     ImageDraw.Draw(shape).rounded_rectangle((0, 0, size - 1, size - 1),
                                             radius=radius, fill=255)
-    bg = Image.new("RGBA", (size, size), WHITE)
+    bg = Image.new("RGBA", (size, size), GREEN_DARK)
     tile.paste(bg, (0, 0), shape)
-    return center_composite(tile, resized(mark, int(size * 0.62)))
+    return center_composite(tile, white_silhouette(mark, int(size * 0.62)))
 
 
 def legacy_round(mark, size):
     tile = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     shape = Image.new("L", (size, size), 0)
     ImageDraw.Draw(shape).ellipse((0, 0, size - 1, size - 1), fill=255)
-    bg = Image.new("RGBA", (size, size), WHITE)
+    bg = Image.new("RGBA", (size, size), GREEN_DARK)
     tile.paste(bg, (0, 0), shape)
-    return center_composite(tile, resized(mark, int(size * 0.56)))
+    return center_composite(tile, white_silhouette(mark, int(size * 0.56)))
 
 
 def adaptive_foreground(mark, size):
     """Android 8+ adaptive foreground: 108dp canvas, only the middle 72dp is
-    guaranteed visible. Keep the mark inside roughly the middle half."""
+    guaranteed visible. Keep the mark inside roughly the middle half. Drawn
+    as a white silhouette — the adaptive background is the premium deep
+    green tile (set in scripts/patch-android-icons.py), so a green-on-green
+    mark would disappear."""
     layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    return center_composite(layer, resized(mark, int(size * 0.42)))
+    return center_composite(layer, white_silhouette(mark, int(size * 0.42)))
+
+
+def lerp_rgb(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def vertical_gradient(w, h, top, bottom):
+    """A 1px-wide gradient column resized to full width — avoids a slow
+    per-pixel double loop over a 1920x1920 canvas."""
+    col = Image.new("RGB", (1, h))
+    px = col.load()
+    for y in range(h):
+        px[0, y] = lerp_rgb(top, bottom, y / max(1, h - 1))
+    return col.resize((w, h))
+
+
+def radial_glow(size, color, max_alpha=70):
+    """A soft radial glow, rendered small then upscaled with a blur for a
+    cheap approximation of a smooth gradient without extra dependencies."""
+    small = 160
+    glow = Image.new("RGBA", (small, small), (0, 0, 0, 0))
+    px = glow.load()
+    cx = cy = small / 2
+    r = small / 2
+    for y in range(small):
+        for x in range(small):
+            d = min(1.0, ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 / r)
+            a = max(0, int(max_alpha * (1 - d) ** 1.6))
+            px[x, y] = (color[0], color[1], color[2], a)
+    return glow.resize((size, size), Image.LANCZOS)
 
 
 def splash(wordmark_full, w, h):
-    img = Image.new("RGBA", (w, h), WHITE)
-    art = wordmark_full.copy()
-    art.thumbnail((int(w * 0.42), int(w * 0.42)), Image.LANCZOS)
+    """Premium dark-gradient splash (deep forest to brand green) with a
+    soft champagne-gold glow behind the wordmark, which is rendered as a
+    white silhouette so it reads on the dark field."""
+    img = vertical_gradient(w, h, GREEN_DEEP[:3], GREEN_DARK[:3]).convert("RGBA")
+    glow = radial_glow(int(w * 0.85), GOLD, max_alpha=60)
+    img.alpha_composite(glow, (int(w * 0.16), int(-h * 0.10)))
+    mint_glow = radial_glow(int(w * 0.7), (44, 168, 85), max_alpha=45)
+    img.alpha_composite(mint_glow, (int(-w * 0.18), int(h * 0.62)))
+    art = white_silhouette(wordmark_full, int(w * 0.42))
     return center_composite(img, art).convert("RGB")
 
 
 def white_silhouette(mark, size):
-    """Notification small icons must be white-on-transparent to tint properly."""
+    """Notification small icons and any mark placed on a dark tile must be
+    white-on-transparent so they tint/read correctly."""
     m = resized(mark, size)
     out = Image.new("RGBA", m.size, (0, 0, 0, 0))
     alpha = m.getchannel("A")
@@ -162,9 +205,12 @@ def white_silhouette(mark, size):
     return out
 
 
-def on_white(mark, size, pad=0.0):
-    tile = Image.new("RGBA", (size, size), WHITE)
-    return center_composite(tile, resized(mark, int(size * (1 - pad * 2))))
+def on_dark(mark, size, pad=0.0):
+    """Premium deep-green tile with the mark rendered as a white silhouette
+    — used for every PWA/web icon so the whole icon set matches the app's
+    dark-gradient brand treatment instead of a plain white square."""
+    tile = Image.new("RGBA", (size, size), GREEN_DARK)
+    return center_composite(tile, white_silhouette(mark, int(size * (1 - pad * 2))))
 
 
 def main():
@@ -184,11 +230,11 @@ def main():
     print(f"mark: {mark.size}, wordmark: {wordmark.size if wordmark else 'n/a'}")
 
     # ── web / PWA ──
-    on_white(mark, 512).convert("RGB").save(RES / "icon-512x512-any.png")
-    on_white(mark, 192).convert("RGB").save(RES / "icon-192x192-any.png")
-    on_white(mark, 512, pad=0.14).convert("RGB").save(RES / "icon-512x512-maskable.png")
-    on_white(mark, 180).convert("RGB").save(RES / "apple-touch-icon-180.png")
-    on_white(mark, 128).convert("RGB").save(RES / "favicon-128.png")
+    on_dark(mark, 512).convert("RGB").save(RES / "icon-512x512-any.png")
+    on_dark(mark, 192).convert("RGB").save(RES / "icon-192x192-any.png")
+    on_dark(mark, 512, pad=0.14).convert("RGB").save(RES / "icon-512x512-maskable.png")
+    on_dark(mark, 180).convert("RGB").save(RES / "apple-touch-icon-180.png")
+    on_dark(mark, 128).convert("RGB").save(RES / "favicon-128.png")
     mark.copy().resize((256, 256), Image.LANCZOS).save(RES / "mark.png")
     print("web icons written")
 

@@ -7,9 +7,9 @@
 does nothing in the APK — there the status bar comes from the Android theme,
 and Capacitor's default is a stock blue-grey band above the green header.
 
-RongaMari's header is the deep brand green (#0A4D22) with white icons, and the
-app background is a light green-tinted grey, so the window behind the WebView
-is set to match and first paint never flashes white.
+RongaMari's header is the deep brand green (#0B3D22) with white icons, and the
+app background is a warm ivory, so the window behind the WebView is set to
+match and first paint never flashes white.
 
 NOT EDGE-TO-EDGE, ON PURPOSE
 ----------------------------
@@ -25,8 +25,8 @@ import pathlib
 import re
 import sys
 
-STATUS = "#FF0A4D22"   # --green-900, with alpha. Matches theme-color meta.
-WINDOW = "#FFF2F4F0"   # --bg, so first paint is app-coloured, not white.
+STATUS = "#FF0B3D22"   # --green-900, with alpha. Matches theme-color meta.
+WINDOW = "#FFF7F5EF"   # --bg, so first paint is app-coloured, not white.
 
 ANDROID = pathlib.Path("android")
 VALUES = ANDROID / "app" / "src" / "main" / "res" / "values"
