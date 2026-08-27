@@ -13,7 +13,7 @@
   var KEY = 'rongamari.v1';
 
   var CATEGORY_ICONS = ['🏠','🛒','🚌','💡','📺','⛪','🧰','🎉','🍔','🚕','💊','🎓','👕','📱','💰','🎁','🐾','☕','🛠️','⚽','✈️','🧾'];
-  var CATEGORY_COLORS = ['#3F9C35','#70B010','#157A3C','#0A4D22','#E8A13A','#C94F4F','#2C5D8F','#7A5BA8','#C9714F','#4F8FC9'];
+  var CATEGORY_COLORS = ['#1B7A42','#C9A227','#0B3D22','#B5563C','#3A6EA5','#6B5B95','#2F8F8F','#C77B3B','#4A5D8F','#7A8C3F'];
 
   /* cadence: 'monthly' = one lump payment for the whole month, confirmed once.
      'weekly' = paid in up to five weekly instalments, each confirmed on its own
@@ -527,7 +527,7 @@
     });
     if (orphan > 0) {
       cats.push({
-        id: 'other', name: 'Other', icon: '🧾', color: '#93A299',
+        id: 'other', name: 'Other', icon: '🧾', color: '#97A28E',
         budget: 0, spent: round2(orphan), remaining: round2(-orphan), pct: 100
       });
     }

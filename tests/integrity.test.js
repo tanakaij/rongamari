@@ -57,7 +57,7 @@ check('service worker shell list matches disk', () => {
 
 check('index.html is wired to the manifest and sw', () => {
   ok(html.includes('rongamari.manifest.json'), 'manifest link');
-  ok(html.match(/theme-color" content="#0A4D22"/), 'theme color matches brand');
+  ok(html.match(/theme-color" content="#0B3D22"/), 'theme color matches brand');
 });
 
 check('all bottom-nav views exist as sections', () => {

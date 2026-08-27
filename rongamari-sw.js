@@ -6,7 +6,7 @@
  * js/app.js) so this file itself always revalidates, which is what makes the
  * bump take effect on the next load.
  */
-var CACHE_VERSION = 'v1';
+var CACHE_VERSION = 'v2';
 var SHELL_CACHE = 'rongamari-shell-' + CACHE_VERSION;
 
 /* Anything added to index.html must be added here too, or it will work
